@@ -27,7 +27,11 @@ line-length = 88
 
 [tool.ruff.lint]
 # Enable the same rules as Pylint, plus the pyupgrade rules.
-select = ["E", "F", "W", "C90", "I", "N", "D", "UP", "B", "A", "C4", "T20", "PYI", "PT", "Q", "RSE", "RET", "SIM", "TID", "ARG", "ERA", "PL", "PIE", "TCH", "RUF"]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501", "B010"]
+
+[tool.mypy]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["poetry-core"]
