@@ -17,7 +17,5 @@ lib/
 lib64/
 
 # Project-specific ignores
-models/
 output/
-*.pkl
 .venv/
