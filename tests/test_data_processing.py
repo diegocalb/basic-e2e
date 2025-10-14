@@ -1,11 +1,17 @@
 import pandas as pd
 import pytest
+
 from src.data_processing import create_features
 
 
 @pytest.fixture
 def sample_daily_sales():
-    """Creates a sample DataFrame that mimics the daily_sales data."""
+    """
+    Creates a sample DataFrame that mimics the daily_sales data.
+
+    Returns:
+        pd.DataFrame: A sample DataFrame with a datetime index and a 'revenue' column.
+    """
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=20, freq="D"))
     data = {"revenue": range(20)}
     df = pd.DataFrame(data, index=dates)
@@ -16,6 +22,9 @@ def test_create_features(sample_daily_sales):
     """
     Tests the create_features function to ensure it adds the correct columns
     and removes rows with NaN values.
+
+    Args:
+        sample_daily_sales (pd.DataFrame): The pytest fixture providing a sample DataFrame.
     """
     features_df = create_features(sample_daily_sales)
 

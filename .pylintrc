@@ -1,4 +1,6 @@
 [MASTER]
+init-hook='import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), "src"))'
+
 # Archivos o carpetas a excluir
 ignore=tests
 
@@ -6,4 +8,5 @@ ignore=tests
 # Desactivar mensajes específicos
 disable=
     missing-module-docstring,   # C0114
-    duplicate-code              # R0801
+    duplicate-code,              # R0801
+    invalid-name,                # C0103

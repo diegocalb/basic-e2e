@@ -19,19 +19,19 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v3.3.9
+  - repo: local
     hooks:
       - id: pylint
-        args: ["--rcfile=.pylintrc"] # Optional: if you have a .pylintrc
+        name: pylint (poetry)
+        entry: poetry run pylint src
+        language: system
+        types: [python]
+        pass_filenames: false  # pylint no necesita nombres de archivo individuales
+        args: ["--rcfile=.pylintrc"]
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.0
-    hooks:
       - id: mypy
-        args: [--strict]
-        additional_dependencies:
-          - types-requests # Add any packages with missing type hints here
-          - pandas-stubs
-          - types-pytz
-          - types-python-dateutil
+        name: mypy (poetry)
+        entry: poetry run mypy src
+        language: system
+        types: [python]
+        pass_filenames: false

@@ -25,7 +25,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv pip sync poetry.lock
+        uv pip sync poetry.lock --with dev
 
     - name: Run Black Formatter Check
       run: |
