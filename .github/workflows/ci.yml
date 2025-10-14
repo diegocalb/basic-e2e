@@ -33,8 +33,10 @@ jobs:
         poetry run black --check .
 
     - name: Run Tests with Pytest
-      working-directory: ${{ github.workspace }}
-      run: poetry run pytest -v
+      run: |
+        poetry run python -m pytest -v
+      env:
+        PYTHONPATH: ${{ github.workspace }}
 
     - name: Run Pylint
       run: |
