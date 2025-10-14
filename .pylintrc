@@ -1,0 +1,9 @@
+[MASTER]
+# Archivos o carpetas a excluir
+ignore=tests
+
+[MESSAGES CONTROL]
+# Desactivar mensajes específicos
+disable=
+    missing-module-docstring,   # C0114
+    duplicate-code              # R0801

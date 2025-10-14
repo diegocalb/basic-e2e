@@ -1,12 +1,13 @@
-import pandas as pd
+"""Module for training"""
+
+import os
 from sklearn.ensemble import RandomForestRegressor
 import joblib
-from data_processing import (
+from src.data_processing import (
     load_and_process_data,
     aggregate_daily_sales,
     create_features,
 )
-import os
 
 # --- Data Preparation ---
 print("Preparing data...")

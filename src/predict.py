@@ -1,9 +1,11 @@
+"""Module for prediction"""
+
+import os
 import pandas as pd
 import joblib
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-import os
-from data_processing import (
+from src.data_processing import (
     load_and_process_data,
     aggregate_daily_sales,
     create_features,
@@ -38,7 +40,7 @@ predictions = model.predict(X_test)
 mae = mean_absolute_error(y_test, predictions)
 rmse = np.sqrt(mean_squared_error(y_test, predictions))
 
-print(f"\nModel Evaluation on Test Set:")
+print("\nModel Evaluation on Test Set:")
 print(f"  Mean Absolute Error (MAE): ${mae:,.2f}")
 print(f"  Root Mean Squared Error (RMSE): ${rmse:,.2f}")
 
