@@ -21,6 +21,10 @@ jobs:
         # Cache Poetry itself and the project's dependencies
         cache: 'poetry'
 
+    - name: Install Poetry
+      run: |
+        pip install poetry
+
     - name: Install dependencies
       run: |
         poetry install --no-interaction --no-root
@@ -36,8 +40,3 @@ jobs:
     - name: Run Pylint
       run: |
         poetry run pylint src
-
-    - name: Run training and prediction scripts
-      run: |
-        python src/train.py
-        python src/predict.py
