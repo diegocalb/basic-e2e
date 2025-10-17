@@ -24,9 +24,7 @@ jobs:
         pip install uv
 
     - name: Install dependencies
-      run: |
-        poetry export -f requirements.txt --output requirements.txt --without-hashes
-        uv pip sync requirements.txt
+      run: uv sync --frozen
 
     - name: Run Black Formatter Check
       run: |
