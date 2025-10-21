@@ -6,7 +6,7 @@ WORKDIR /app
 
 RUN pip install uv
 
-COPY pyproject.toml poetry.lock uv.lock ./
+COPY pyproject.toml poetry.lock uv.lock README.md ./
 
 # Install dependencies into a virtual environment within the image
 # This leverages Docker's layer caching. Dependencies are only re-installed
