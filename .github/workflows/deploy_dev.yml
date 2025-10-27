@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-push-docker:
     runs-on: ubuntu-latest
@@ -27,3 +30,12 @@ jobs:
           context: .
           push: true
           tags: ${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Comment on commit with image info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/commits/${{ github.sha }}/comments \
+            -f body="✅ Imagen pushada a Docker Hub (DEV)
+            📦 \`${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}\`
+            🧩 Branch: \`${{ github.ref_name }}\`"
