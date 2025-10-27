@@ -19,16 +19,16 @@ repos:
   - repo: local
     hooks:
       - id: pylint
-        name: pylint (poetry)
-        entry: poetry run pylint src
+        name: pylint
+        entry: uv run pylint src
         language: system
         types: [python]
         pass_filenames: false  # pylint no necesita nombres de archivo individuales
         args: ["--rcfile=.pylintrc"]
 
       - id: mypy
-        name: mypy (poetry)
-        entry: poetry run mypy src
+        name: mypy
+        entry: uv run mypy src
         language: system
         types: [python]
         pass_filenames: false

@@ -5,7 +5,7 @@ import os
 import joblib
 from sklearn.ensemble import RandomForestRegressor
 
-from src.data_processing import (
+from coffee_modeling.data_processing import (
     aggregate_daily_sales,
     create_features,
     load_and_process_data,
