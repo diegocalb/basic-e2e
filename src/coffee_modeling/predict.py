@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-from src.data_processing import (
+from coffee_modeling.data_processing import (
     aggregate_daily_sales,
     create_features,
     load_and_process_data,

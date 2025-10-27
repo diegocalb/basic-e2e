@@ -39,6 +39,12 @@ dev = [
     { name = "ruff" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pylint" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2,<25.0.0" },
@@ -52,6 +58,12 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.7.1,<2.0.0" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.18.2" },
+    { name = "pylint", specifier = ">=3.3.9" },
+]
 
 [[package]]
 name = "black"

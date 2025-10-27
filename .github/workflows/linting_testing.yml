@@ -1,0 +1,39 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install uv
+      run: |
+        pip install uv
+
+    - name: Install dependencies
+      run: uv sync --extra dev
+
+    - name: Run Black Formatter Check
+      run: |
+        uv run black --check .
+
+    - name: Run Tests with Pytest
+      run: |
+        uv run pytest -v
+
+    - name: Run Pylint
+      run: |
+        uv run pylint src
