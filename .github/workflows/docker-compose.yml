@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mlflow:
+    image: mlflow/mlflow:latest
+    ports:
+      - "5000:5000" # Puerto para acceder a la UI de MLflow
+    environment:
+      - MLFLOW_TRACKING_URI=postgresql://mlflow_user:mlflow_password@db:5432/mlflow_db
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio_access_key
+      - AWS_SECRET_ACCESS_KEY=minio_secret_key
+    depends_on:
+      - db
+      - minio
+    networks:
+      - mlflow-network
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=mlflow_db
+      - POSTGRES_USER=mlflow_user
+      - POSTGRES_PASSWORD=mlflow_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - mlflow-network
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000" # Puerto de la API de MinIO
+      - "9001:9001" # Puerto de la consola de MinIO (UI)
+    environment:
+      - MINIO_ROOT_USER=minio_access_key
+      - MINIO_ROOT_PASSWORD=minio_secret_key
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - mlflow-network
+
+volumes:
+  db_data:
+  minio_data:
+
+networks:
+  mlflow-network:
