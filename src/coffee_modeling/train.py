@@ -25,12 +25,12 @@ def main():
     5. Trains a RandomForestRegressor model on the training data.
     6. Saves the trained model to the 'models/' directory.
     """
-    os.environ["MLFLOW_TRACKING_URI"] = "http://localhost:5000"
-    os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
-    os.environ["AWS_ACCESS_KEY_ID"] = "minio_access_key"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "minio_secret_key"
+    # Configura las URIs de MLflow. Es mejor establecerlas como variables de entorno
+    # antes de ejecutar el script, en lugar de hardcodearlas aquí.
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 
     with mlflow.start_run():
+        print(f"Logging to MLflow Tracking URI: {mlflow.get_tracking_uri()}")
         print("Preparing data...")
         raw_df = load_and_process_data()
         daily_sales = aggregate_daily_sales(raw_df)
