@@ -1,31 +1,52 @@
 import pandas as pd
 import pytest
-from coffee_modeling.data_processing import create_features
+from coffee_modeling.data_processing import (
+    aggregate_daily,
+    create_features_pipeline,
+    load_data,
+)
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
 
 
 @pytest.fixture
 def sample_daily_sales():
     """
-    Creates a sample DataFrame that mimics the daily_sales data.
-
-    Returns:
-        pd.DataFrame: A sample DataFrame with a datetime index and a 'revenue' column.
+    Creates a sample DataFrame mimicking daily_sales data.
     """
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=20, freq="D"))
-    data = {"revenue": range(20)}
-    df = pd.DataFrame(data, index=dates)
+    data = {
+        "transaction_date": dates,
+        "transaction_qty": range(20),
+        "unit_price": range(20, 40),
+    }
+    df = pd.DataFrame(data)
     return df
 
 
-def test_create_features(sample_daily_sales):
+def test_preprocessing_pipeline(sample_daily_sales):
     """
-    Tests the create_features function to ensure it adds the correct columns
-    and removes rows with NaN values.
+    Tests the preprocessing pipeline end-to-end:
+    load -> aggregate -> features -> imputer
+    """
+    load_transformer = FunctionTransformer(load_data)
+    aggregate_transformer = FunctionTransformer(aggregate_daily)
+    features_transformer = FunctionTransformer(create_features_pipeline)
+    preprocessing_pipeline = Pipeline(
+        [
+            ("load", load_transformer),
+            ("aggregate", aggregate_transformer),
+            ("features", features_transformer),
+            ("imputer", SimpleImputer(strategy="mean")),
+        ]
+    )
 
-    Args:
-        sample_daily_sales (pd.DataFrame): The pytest fixture providing a sample DataFrame.
-    """
-    features_df = create_features(sample_daily_sales)
+    df_processed = (
+        preprocessing_pipeline.fit_transform("data/coffee_sales_full.csv")
+        if False
+        else preprocessing_pipeline.fit_transform(sample_daily_sales)
+    )
 
     expected_cols = [
         "dayofweek",
@@ -39,13 +60,14 @@ def test_create_features(sample_daily_sales):
         "lag_5",
         "lag_6",
         "lag_7",
+        "revenue",
     ]
+
     for col in expected_cols:
         assert (
-            col in features_df.columns
+            col in df_processed.columns
         ), f"Column '{col}' is missing from the DataFrame"
 
-    # Check that rows with NaNs (created by lag features) are dropped
-    assert (
-        not features_df.isnull().values.any()
-    ), "DataFrame should not contain any NaN values"
+    assert not pd.isnull(
+        df_processed.values
+    ).any(), "DataFrame should not contain any NaN values"
