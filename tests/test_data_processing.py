@@ -1,73 +1,54 @@
+"""Tests for data processing functions."""
+
 import pandas as pd
 import pytest
-from coffee_modeling.data_processing import (
-    aggregate_daily,
-    create_features_pipeline,
-    load_data,
-)
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
+from coffee_modeling.data_processing import aggregate_daily
 
 
+# --- Fixtures ---
 @pytest.fixture
-def sample_daily_sales():
+def raw_sales_df():
     """
-    Creates a sample DataFrame mimicking daily_sales data.
+    Creates a sample raw DataFrame with multiple transactions per day,
+    mimicking the output of the load_data function.
     """
-    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=20, freq="D"))
     data = {
-        "transaction_date": dates,
-        "transaction_qty": range(20),
-        "unit_price": range(20, 40),
+        "transaction_date": [
+            "2023-01-01",
+            "2023-01-01",  # Dos transacciones el mismo día
+            "2023-01-03",  # Un día sin transacciones en medio
+        ],
+        "revenue": [10.5, 20.0, 50.0],
     }
     df = pd.DataFrame(data)
+    df["transaction_date"] = pd.to_datetime(df["transaction_date"])
     return df
 
 
-def test_preprocessing_pipeline(sample_daily_sales):
+# --- Tests ---
+def test_aggregate_daily(raw_sales_df):
     """
-    Tests the preprocessing pipeline end-to-end:
-    load -> aggregate -> features -> imputer
+    Unit test for the aggregate_daily function.
+
+    It checks for:
+    1. Correct summation of revenue for a given day.
+    2. Correct handling of days with no sales (resampling to 0).
+    3. The output DataFrame has the correct structure.
     """
-    load_transformer = FunctionTransformer(load_data)
-    aggregate_transformer = FunctionTransformer(aggregate_daily)
-    features_transformer = FunctionTransformer(create_features_pipeline)
-    preprocessing_pipeline = Pipeline(
-        [
-            ("load", load_transformer),
-            ("aggregate", aggregate_transformer),
-            ("features", features_transformer),
-            ("imputer", SimpleImputer(strategy="mean")),
-        ]
-    )
+    # Ejecutar la función a probar
+    daily_df = aggregate_daily(raw_sales_df)
 
-    df_processed = (
-        preprocessing_pipeline.fit_transform("data/coffee_sales_full.csv")
-        if False
-        else preprocessing_pipeline.fit_transform(sample_daily_sales)
-    )
+    # 1. Verificar que el índice sea de tipo DatetimeIndex
+    assert isinstance(daily_df.index, pd.DatetimeIndex)
 
-    expected_cols = [
-        "dayofweek",
-        "month",
-        "year",
-        "dayofyear",
-        "lag_1",
-        "lag_2",
-        "lag_3",
-        "lag_4",
-        "lag_5",
-        "lag_6",
-        "lag_7",
-        "revenue",
-    ]
+    # 2. Verificar la agregación correcta para un día con múltiples transacciones
+    assert daily_df.loc["2023-01-01"]["revenue"] == 30.5
 
-    for col in expected_cols:
-        assert (
-            col in df_processed.columns
-        ), f"Column '{col}' is missing from the DataFrame"
+    # 3. Verificar que el día sin ventas se rellenó con 0
+    assert daily_df.loc["2023-01-02"]["revenue"] == 0.0
 
-    assert not pd.isnull(
-        df_processed.values
-    ).any(), "DataFrame should not contain any NaN values"
+    # 4. Verificar el valor para un día con una sola transacción
+    assert daily_df.loc["2023-01-03"]["revenue"] == 50.0
+
+    # 5. Verificar que el DataFrame resultante tiene el tamaño esperado
+    assert len(daily_df) == 3

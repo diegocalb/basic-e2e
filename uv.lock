@@ -77,6 +77,7 @@ dependencies = [
     { name = "mlflow" },
     { name = "pandas" },
     { name = "psycopg2-binary" },
+    { name = "pytest" },
     { name = "scikit-learn" },
 ]
 
@@ -107,6 +108,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.3.0,<5.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pylint", marker = "extra == 'dev'", specifier = ">=3.3.9,<4.0.0" },
+    { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2,<9.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5.5,<1.0.0" },
     { name = "scikit-learn", specifier = ">=1.7.1,<2.0.0" },
