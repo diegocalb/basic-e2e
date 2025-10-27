@@ -7,6 +7,9 @@ on:
 permissions:
   contents: write
 
+env:
+  DOCKER_IMAGE_NAME_PROD: diego/basice2e_docker_prod
+
 jobs:
   build-and-push-docker:
     runs-on: ubuntu-latest
