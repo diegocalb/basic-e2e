@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-
-from src.coffee_modeling.data_processing import create_features
+from coffee_modeling.data_processing import create_features
 
 
 @pytest.fixture
