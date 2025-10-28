@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+from coffee_modeling.data_processing import split_data
+
 
 def load_model(model_uri: str):
     """
@@ -44,12 +46,8 @@ def make_predictions(model_pipeline, data_path: str):
         data_path
     )
 
-    X = daily_sales_features.drop("revenue", axis=1)
-    y = daily_sales_features["revenue"]
-
-    split_point = int(len(X) * 0.8)
-    X_test = X[split_point:]
-    y_test = y[split_point:]
+    # Usar la función centralizada para obtener el conjunto de prueba
+    _, _, X_test, y_test = split_data(daily_sales_features, test_size=0.2)
 
     predictions = model_pipeline.predict(X_test)
     return y_test, predictions

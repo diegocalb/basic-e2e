@@ -7,7 +7,10 @@ import mlflow.sklearn
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 
-from coffee_modeling.data_processing import preprocessing_pipeline
+from coffee_modeling.data_processing import (
+    preprocessing_pipeline,
+    split_data,
+)
 
 
 def main(csv_path="data/coffee_sales_full.csv", n_estimators=100, random_state=42):
@@ -26,12 +29,8 @@ def main(csv_path="data/coffee_sales_full.csv", n_estimators=100, random_state=4
 
     daily_sales_features = preprocessing_pipeline.fit_transform(csv_path)
 
-    X = daily_sales_features.drop("revenue", axis=1)
-    y = daily_sales_features["revenue"]
-
-    split_point = int(len(X) * 0.8)
-    X_train, _ = X[:split_point], X[split_point:]
-    y_train, _ = y[:split_point], y[split_point:]
+    # Usar la nueva función para obtener solo los datos de entrenamiento
+    X_train, y_train, _, _ = split_data(daily_sales_features, test_size=0.2)
 
     model = RandomForestRegressor(
         n_estimators=n_estimators, random_state=random_state, n_jobs=-1

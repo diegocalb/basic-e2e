@@ -12,18 +12,20 @@ import mlflow
 import numpy as np
 from sklearn.metrics import mean_squared_error
 
+from coffee_modeling.data_processing import split_data
 
-def get_test_data(model_pipeline, data_path: str):
+
+def get_holdout_data(model_pipeline, data_path: str):
     """
-    Prepara y devuelve el conjunto de datos de prueba.
+    Prepara y devuelve el conjunto de datos de prueba de holdout.
+    Este conjunto de datos está estrictamente separado del entrenamiento.
     """
-    print("Preparando conjunto de datos de prueba...")
+    print("Preparando conjunto de datos de holdout...")
     features = model_pipeline.named_steps["preprocessing"].transform(data_path)
-    X = features.drop("revenue", axis=1)
-    y = features["revenue"]
-    split_point = int(len(X) * 0.8)
-    X_test = X[split_point:]
-    y_test = y[split_point:]
+
+    # Usar la función centralizada para obtener solo el conjunto de prueba (holdout)
+    _, _, X_test, y_test = split_data(features, test_size=0.2)
+
     return X_test, y_test
 
 
@@ -56,10 +58,10 @@ def main(model_name: str, rmse_improvement_threshold: float):
 
     # Cargar el modelo de Staging
     staging_model = mlflow.sklearn.load_model(staging_version.source)
-    X_test, y_test = get_test_data(staging_model, "data/coffee_sales_full.csv")
+    X_test, y_test = get_holdout_data(staging_model, "data/coffee_sales_full.csv")
     staging_rmse = evaluate_model_rmse(staging_model, X_test, y_test)
     print(
-        f"RMSE del modelo en Staging (v{staging_version.version}): ${staging_rmse:,.2f}"
+        f"RMSE del modelo en Staging (v{staging_version.version}) en holdout: ${staging_rmse:,.2f}"
     )
 
     # Buscar y evaluar el modelo de Production
@@ -81,7 +83,9 @@ def main(model_name: str, rmse_improvement_threshold: float):
     print(f"Modelo en Production encontrado: Versión {prod_version.version}")
     prod_model = mlflow.sklearn.load_model(prod_version.source)
     prod_rmse = evaluate_model_rmse(prod_model, X_test, y_test)
-    print(f"RMSE del modelo en Production (v{prod_version.version}): ${prod_rmse:,.2f}")
+    print(
+        f"  RMSE del modelo en Production (v{prod_version.version}) en holdout: ${prod_rmse:,.2f}"
+    )
 
     # Calculamos la mejora como (RMSE_antiguo - RMSE_nuevo) / RMSE_antiguo
     # Si el RMSE es menor, la mejora es positiva.
