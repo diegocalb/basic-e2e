@@ -26,4 +26,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY src ./src
 COPY data ./data
 
+# Variable de entorno para MLflow
+ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+
 ENTRYPOINT ["train-model"]
