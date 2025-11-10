@@ -4,12 +4,12 @@ services:
   mlflow:
     image: mlflow/mlflow:latest
     ports:
-      - "5000:5000" # Puerto para acceder a la UI de MLflow
+      - "5000:5000"
     environment:
-      - MLFLOW_TRACKING_URI=postgresql://mlflow_user:mlflow_password@db:5432/mlflow_db
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=minio_access_key
-      - AWS_SECRET_ACCESS_KEY=minio_secret_key
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
     depends_on:
       - db
       - minio
@@ -19,9 +19,9 @@ services:
   db:
     image: postgres:13
     environment:
-      - POSTGRES_DB=mlflow_db
-      - POSTGRES_USER=mlflow_user
-      - POSTGRES_PASSWORD=mlflow_password
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
@@ -30,20 +30,72 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000" # Puerto de la API de MinIO
-      - "9001:9001" # Puerto de la consola de MinIO (UI)
+      - "9000:9000"
+      - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minio_access_key
-      - MINIO_ROOT_PASSWORD=minio_secret_key
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
     networks:
       - mlflow-network
 
+  airflow-webserver:
+    image: apache/airflow:2.9.2
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR}
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW__CORE__SQL_ALCHEMY_CONN}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW__CORE__LOAD_EXAMPLES}
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    ports:
+      - "8080:8080"
+    command: webserver
+    networks:
+      - mlflow-network
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.2
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR}
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW__CORE__SQL_ALCHEMY_CONN}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    command: scheduler
+    networks:
+      - mlflow-network
+
+  postgres_data:
+    image: postgres:13
+    container_name: postgres_data
+    environment:
+      - POSTGRES_DB=${POSTGRESDATA_DB}
+      - POSTGRES_USER=${POSTGRESDATA_USER}
+      - POSTGRES_PASSWORD=${POSTGRESDATA_PASSWORD}
+    ports:
+      - "5433:5432"  # distinto puerto externo para evitar colisión con el otro Postgres
+    volumes:
+      - data_db_volume:/var/lib/postgresql/data
+    networks:
+      - mlflow-network
+
 volumes:
   db_data:
   minio_data:
+  data_db_volume:
 
 networks:
   mlflow-network:
