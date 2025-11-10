@@ -72,6 +72,26 @@ def create_features_pipeline(df: pd.DataFrame):
     return df
 
 
+def split_data(features_df: pd.DataFrame, test_size: float = 0.2):
+    """
+    Divide el DataFrame de características en conjuntos de entrenamiento y prueba.
+
+    Args:
+        features_df (pd.DataFrame): El DataFrame completo con características.
+        test_size (float): La proporción del dataset a reservar para el conjunto de prueba.
+
+    Returns:
+        tuple: (X_train, y_train, X_test, y_test)
+    """
+    X = features_df.drop("revenue", axis=1)
+    y = features_df["revenue"]
+    split_point = int(len(X) * (1 - test_size))
+    X_train, X_test = X[:split_point], X[split_point:]
+    y_train, y_test = y[:split_point], y[split_point:]
+    return X_train, y_train, X_test, y_test
+
+
+# --- Pipelines de preprocesamiento ---
 load_transformer = FunctionTransformer(load_data)
 aggregate_transformer = FunctionTransformer(aggregate_daily)
 features_transformer = FunctionTransformer(create_features_pipeline)
