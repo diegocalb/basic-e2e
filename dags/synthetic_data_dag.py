@@ -116,7 +116,9 @@ def synthetic_data_loader_dag():
             data.append(
                 {
                     "transaction_id": start_id + i,
-                    "transaction_date": pendulum.parse(logical_date).format("M/D/YYYY"),
+                    "transaction_date": pendulum.parse(
+                        logical_date
+                    ).to_date_string(),  # Formato YYYY-MM-DD
                     "transaction_time": fake.time(),
                     "transaction_qty": random.randint(1, 3),
                     "store_id": store_id,
