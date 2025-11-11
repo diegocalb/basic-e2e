@@ -15,6 +15,9 @@ def _upload_csv_to_postgres():
 
     df = pd.read_csv(csv_filepath)
     df.columns = [c.lower().replace(".", "").replace(" ", "_") for c in df.columns]
+    df["transaction_date"] = pd.to_datetime(
+        df["transaction_date"], format="%m/%d/%Y"
+    ).dt.date
 
     engine = pg_hook.get_sqlalchemy_engine()
     df.to_sql("coffee_sales", engine, if_exists="replace", index=False, chunksize=1000)
