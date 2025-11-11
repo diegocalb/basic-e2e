@@ -1,0 +1,8 @@
+# Dockerfile.airflow
+FROM apache/airflow:2.9.2
+
+# Instala paquetes adicionales que usará el DAG
+RUN pip install --no-cache-dir \
+    Faker \
+    SQLAlchemy \
+    apache-airflow-providers-postgres
