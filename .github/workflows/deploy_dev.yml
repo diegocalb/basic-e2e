@@ -31,11 +31,25 @@ jobs:
           push: true
           tags: ${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Comment on commit with image info
+      - name: Find PR associated with this commit
+        id: find_pr
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
-            -f body="✅ Imagen pushada a Docker Hub (DEV)
-            📦 \`${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}\`
-            🧩 Branch: \`${{ github.ref_name }}\`"
+          PR_NUMBER=$(gh pr list \
+            --search "${{ github.sha }}" \
+            --state merged \
+            --json number \
+            --jq '.[0].number')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/issues/${{ steps.find_pr.outputs.pr_number }}/comments \
+            -f body="🚀 Cambios desplegados en \`main\`  
+            ✅ Imagen pushada a Docker Hub  
+            📦 \`${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}\`  
+            🧩 Commit: \`${{ github.sha }}\`"
