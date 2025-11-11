@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mlflow:
-    image: mlflow/mlflow:latest
+    image: ghcr.io/mlflow/mlflow:v2.16.0
     ports:
       - "5000:5000"
     environment:
@@ -42,7 +42,9 @@ services:
       - mlflow-network
 
   airflow-webserver:
-    image: apache/airflow:2.9.2
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     restart: always
     depends_on:
       - db
@@ -51,8 +53,10 @@ services:
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW__CORE__SQL_ALCHEMY_CONN}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
       - AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW__CORE__LOAD_EXAMPLES}
+      - AIRFLOW_CONN_POSTGRES_DATA_CONN=postgresql://${POSTGRESDATA_USER}:${POSTGRESDATA_PASSWORD}@postgres_data:5432/${POSTGRESDATA_DB}
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
     ports:
@@ -62,7 +66,9 @@ services:
       - mlflow-network
 
   airflow-scheduler:
-    image: apache/airflow:2.9.2
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     restart: always
     depends_on:
       - db
@@ -70,7 +76,9 @@ services:
       - AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR}
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW__CORE__SQL_ALCHEMY_CONN}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
+      - AIRFLOW_CONN_POSTGRES_DATA_CONN=postgresql://${POSTGRESDATA_USER}:${POSTGRESDATA_PASSWORD}@postgres_data:5432/${POSTGRESDATA_DB}
     volumes:
+      - ./data:/opt/airflow/data
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins

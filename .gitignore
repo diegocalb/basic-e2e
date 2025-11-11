@@ -21,5 +21,6 @@ lib64/
 # Project-specific ignores
 output/
 .venv/
+logs/
 
 .env
