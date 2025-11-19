@@ -1,5 +1,7 @@
 """Module for training"""
 
+# pylint: disable=E0401
+
 import os
 
 import mlflow
@@ -13,7 +15,13 @@ from coffee_modeling.data_processing import (
 )
 
 
-def main(csv_path="data/coffee_sales_full.csv", n_estimators=100, random_state=42):
+def main(
+    postgres_conn_id: str = "postgres_data_conn",
+    postgres_table_name: str = "coffee_sales",
+    n_estimators: int = 100,
+    random_state: int = 42,
+    holdout_days: int = 30,
+):
     """
     Main function to run the data preparation and model training pipeline.
 
@@ -27,10 +35,16 @@ def main(csv_path="data/coffee_sales_full.csv", n_estimators=100, random_state=4
     """
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 
-    daily_sales_features = preprocessing_pipeline.fit_transform(csv_path)
+    print(
+        f"Loading from PostgreSQL table: {postgres_table_name} using connection: {postgres_conn_id}"
+    )
+    daily_sales_features = preprocessing_pipeline.fit_transform(
+        None,  # X is None for the first step (load_data_from_postgres)
+        load__conn_id=postgres_conn_id,
+        load__table_name=postgres_table_name,
+    )
 
-    # Usar la nueva función para obtener solo los datos de entrenamiento
-    X_train, y_train, _, _ = split_data(daily_sales_features, test_size=0.2)
+    X_train, y_train, _, _ = split_data(daily_sales_features, holdout_days=holdout_days)
 
     model = RandomForestRegressor(
         n_estimators=n_estimators, random_state=random_state, n_jobs=-1
@@ -40,21 +54,30 @@ def main(csv_path="data/coffee_sales_full.csv", n_estimators=100, random_state=4
         [("preprocessing", preprocessing_pipeline), ("model", model)]
     )
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         print(f"Logging to MLflow Tracking URI: {mlflow.get_tracking_uri()}")
         print("Preparing data...")
+
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_param("random_state", random_state)
 
         print("Training model...")
         full_pipeline.fit(X_train, y_train)
 
-        # Loguear odo el pipeline
         mlflow.sklearn.log_model(full_pipeline, artifact_path="coffee_model_pipeline")
 
         print("Time series model trained and logged to MLflow.")
-        print(f"MLflow Run ID: {mlflow.active_run().info.run_id}")
+        print(f"MLflow Run ID: {run.info.run_id}")
 
 
 if __name__ == "__main__":
-    main()
+    _postgres_conn_id = os.getenv("POSTGRES_CONN_ID", "postgres_data_conn")
+    _postgres_table_name = os.getenv("POSTGRES_TABLE_NAME", "coffee_sales")
+    _holdout_days = int(os.getenv("HOLDOUT_DAYS", "30"))
+
+    print("Running train.py locally...")
+    main(
+        postgres_conn_id=_postgres_conn_id,
+        postgres_table_name=_postgres_table_name,
+        holdout_days=_holdout_days,
+    )

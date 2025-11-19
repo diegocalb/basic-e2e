@@ -1,12 +1,11 @@
 """
 Módulo para la promoción de modelos de Staging a Production.
-
-Este script compara el rendimiento del último modelo en 'Staging' con el modelo
-actual en 'Production'. Si el modelo de 'Staging' muestra una mejora en el RMSE
-superior a un umbral definido, se promueve a 'Production'.
 """
 
+# pylint: disable=E0401
 import os
+import time
+from dataclasses import dataclass
 
 import mlflow
 import numpy as np
@@ -15,105 +14,156 @@ from sklearn.metrics import mean_squared_error
 from coffee_modeling.data_processing import split_data
 
 
-def get_holdout_data(model_pipeline, data_path: str):
-    """
-    Prepara y devuelve el conjunto de datos de prueba de holdout.
-    Este conjunto de datos está estrictamente separado del entrenamiento.
-    """
-    print("Preparando conjunto de datos de holdout...")
-    features = model_pipeline.named_steps["preprocessing"].transform(data_path)
+@dataclass
+class DataConfig:
+    """Config para la conexión a Postgres"""
 
-    # Usar la función centralizada para obtener solo el conjunto de prueba (holdout)
-    _, _, X_test, y_test = split_data(features, test_size=0.2)
+    postgres_conn_id: str
+    postgres_table_name: str
+    holdout_days: int
 
+
+@dataclass
+class PromotionConfig:
+    """Config para la promoción"""
+
+    model_name: str
+    rmse_improvement_threshold: float
+    model_obsolescence_days: int
+
+
+def load_latest_version(client, model_name, stage):
+    """Devuelve la última versión de un modelo en un stage dado."""
+    versions = client.get_latest_versions(model_name, stages=[stage])
+    return versions[0] if versions else None
+
+
+def load_model_by_version(version):
+    """Carga un modelo dado un objeto ModelVersion."""
+    return mlflow.sklearn.load_model(version.source)
+
+
+def prepare_holdout(model, data_config: DataConfig):
+    """Genera el holdout test set usando el pipeline del modelo."""
+    features = model.named_steps["preprocessing"].transform(
+        None,
+        load__conn_id=data_config.postgres_conn_id,
+        load__table_name=data_config.postgres_table_name,
+    )
+    _, _, X_test, y_test = split_data(features, holdout_days=data_config.holdout_days)
     return X_test, y_test
 
 
-def evaluate_model_rmse(model, X_test, y_test):
-    """
-    Evalúa un modelo y devuelve su RMSE.
-    """
-    predictions = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, predictions))
-    return rmse
+def evaluate_rmse(model, X_test, y_test):
+    """Calcula el RMSE de un modelo."""
+    preds = model.predict(X_test)
+    return np.sqrt(mean_squared_error(y_test, preds))
 
 
-def main(model_name: str, rmse_improvement_threshold: float):
-    """
-    Función principal para ejecutar la lógica de promoción del modelo.
-    """
+def compute_model_age_days(version):
+    """Devuelve edad del modelo en días."""
+    creation_s = version.creation_timestamp / 1000
+    return (time.time() - creation_s) / 86400
+
+
+def evaluate_staging(client, promotion_config, data_config):
+    """Evaluar staging"""
+    staging_version = load_latest_version(
+        client, promotion_config.model_name, "Staging"
+    )
+    if staging_version is None:
+        print("No hay modelos en Staging.")
+        return None, None, None, None
+
+    print(f"Modelo en Staging encontrado: v{staging_version.version}")
+    staging_model = load_model_by_version(staging_version)
+    X_test, y_test = prepare_holdout(staging_model, data_config)
+    staging_rmse = evaluate_rmse(staging_model, X_test, y_test)
+    print(f"RMSE Staging: ${staging_rmse:,.2f}")
+    return staging_version, X_test, y_test, staging_rmse
+
+
+def evaluate_production(client, promotion_config, X_test, y_test):
+    """Evaluar modelo producción"""
+    prod_version = load_latest_version(
+        client, promotion_config.model_name, "Production"
+    )
+    if prod_version is None:
+        return None, None
+
+    print(f"Modelo en Production encontrado: v{prod_version.version}")
+    prod_model = load_model_by_version(prod_version)
+    prod_rmse = evaluate_rmse(prod_model, X_test, y_test)
+    print(f"RMSE Production: ${prod_rmse:,.2f}")
+
+    return prod_version, prod_rmse
+
+
+def promote_version(client, model_name, version, reason):
+    """Promueve un modelo a Production."""
+    print(f"🚀 Promoviendo v{version.version} a Production ({reason})...")
+    client.transition_model_version_stage(
+        name=model_name,
+        version=version.version,
+        stage="Production",
+        archive_existing_versions=True,
+    )
+    print("Promoción completada.")
+
+
+def main(data_config: DataConfig, promotion_config: PromotionConfig):
+    """Función Main"""
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
-    client = mlflow.tracking.MlflowClient()
+    client = mlflow.MlflowClient()
 
-    try:
-        staging_versions = client.get_latest_versions(model_name, stages=["Staging"])
-        if not staging_versions:
-            print("No hay modelos en 'Staging'. Saliendo.")
-            return
-        staging_version = staging_versions[0]
-        print(f"Modelo en Staging encontrado: Versión {staging_version.version}")
-    except mlflow.exceptions.RestException:
-        print(f"El modelo '{model_name}' no existe o no tiene versiones en 'Staging'.")
+    staging_version, X_test, y_test, staging_rmse = evaluate_staging(
+        client, promotion_config, data_config
+    )
+    if staging_version is None:
         return
 
-    # Cargar el modelo de Staging
-    staging_model = mlflow.sklearn.load_model(staging_version.source)
-    X_test, y_test = get_holdout_data(staging_model, "data/coffee_sales_full.csv")
-    staging_rmse = evaluate_model_rmse(staging_model, X_test, y_test)
-    print(
-        f"RMSE del modelo en Staging (v{staging_version.version}) en holdout: ${staging_rmse:,.2f}"
+    prod_version, prod_rmse = evaluate_production(
+        client, promotion_config, X_test, y_test
     )
 
-    # Buscar y evaluar el modelo de Production
-    prod_versions = client.get_latest_versions(model_name, stages=["Production"])
-    if not prod_versions:
-        print(
-            "No hay modelo en 'Production'. Promoviendo el modelo de 'Staging' automáticamente."
+    if prod_version is None:
+        promote_version(
+            client, promotion_config.model_name, staging_version, "Primer modelo"
         )
-        client.transition_model_version_stage(
-            name=model_name,
-            version=staging_version.version,
-            stage="Production",
-            archive_existing_versions=True,
-        )
-        print(f"Modelo v{staging_version.version} promovido a Production.")
         return
 
-    prod_version = prod_versions[0]
-    print(f"Modelo en Production encontrado: Versión {prod_version.version}")
-    prod_model = mlflow.sklearn.load_model(prod_version.source)
-    prod_rmse = evaluate_model_rmse(prod_model, X_test, y_test)
-    print(
-        f"  RMSE del modelo en Production (v{prod_version.version}) en holdout: ${prod_rmse:,.2f}"
-    )
-
-    # Calculamos la mejora como (RMSE_antiguo - RMSE_nuevo) / RMSE_antiguo
-    # Si el RMSE es menor, la mejora es positiva.
     improvement = (prod_rmse - staging_rmse) / prod_rmse
-    print(f"\nMejora del rendimiento: {improvement:.2%}")
+    model_age_days = compute_model_age_days(prod_version)
+    print(f"Mejora: {improvement:.2%}")
+    print(f"Edad del modelo en Prod: {model_age_days:.1f} días")
 
-    if improvement > rmse_improvement_threshold:
-        print(f"La mejora supera el umbral de {rmse_improvement_threshold:.2%}.")
-        print(f"Promoviendo modelo v{staging_version.version} a 'Production'...")
+    should_promote_due_perf = improvement > promotion_config.rmse_improvement_threshold
+    is_obsolete = model_age_days > promotion_config.model_obsolescence_days
 
-        # Promover el nuevo modelo a Production
-        client.transition_model_version_stage(
-            name=model_name,
-            version=staging_version.version,
-            stage="Production",
-            archive_existing_versions=True,  # Esto mueve el antiguo 'Production' a 'Archived'
+    if should_promote_due_perf or is_obsolete:
+        reason = (
+            f"Mejora {improvement:.2%}"
+            if should_promote_due_perf
+            else f"Obsolescencia > {promotion_config.model_obsolescence_days} días"
         )
-        print("¡Promoción completada!")
+        promote_version(client, promotion_config.model_name, staging_version, reason)
     else:
-        print(
-            f"La mejora no supera el umbral. Modelo v{staging_version.version} no será promovido."
-        )
+        print("No se cumple mejora ni obsolescencia.")
 
 
 if __name__ == "__main__":
-    MODEL_NAME = "coffee_model_pipeline"
-    # Umbral de mejora: el nuevo modelo debe tener un RMSE un 5% menor
-    # (es decir, el RMSE del nuevo modelo debe ser 95% o menos del RMSE del modelo actual)
-    RMSE_IMPROVEMENT_THRESHOLD = 0.05
+    data_cfg = DataConfig(
+        postgres_conn_id=os.getenv("POSTGRES_CONN_ID", "postgres_data_conn"),
+        postgres_table_name=os.getenv("POSTGRES_TABLE_NAME", "coffee_sales"),
+        holdout_days=int(os.getenv("HOLDOUT_DAYS", "30")),
+    )
 
-    main(MODEL_NAME, RMSE_IMPROVEMENT_THRESHOLD)
+    promo_cfg = PromotionConfig(
+        model_name="coffee_model_pipeline",
+        rmse_improvement_threshold=float(
+            os.getenv("RMSE_IMPROVEMENT_THRESHOLD", "-0.05")
+        ),
+        model_obsolescence_days=int(os.getenv("MODEL_OBSOLESCENCE_DAYS", "60")),
+    )
+
+    main(data_cfg, promo_cfg)

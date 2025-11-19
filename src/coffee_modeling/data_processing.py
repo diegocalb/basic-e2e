@@ -1,27 +1,36 @@
 """Module for data processing functions"""
 
+# pylint: disable=E0401
+
+from datetime import timedelta
+
 import pandas as pd
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
 
-def load_data(path="data/coffee_sales_full.csv"):
+def load_data_from_postgres(conn_id: str, table_name: str):
     """Loads and preprocesses the raw coffee sales data from a CSV file.
+    Loads and preprocesses the raw coffee sales data from a PostgreSQL table.
 
     This function reads a CSV file, converts the 'transaction_date' column to
     datetime objects, and calculates a 'revenue' column by multiplying
     'transaction_qty' and 'unit_price'.
 
     Args:
-        path (str, optional): The file path to the CSV data.
-            Defaults to "data/coffee_sales_full.csv".
+        conn_id (str): The Airflow connection ID for PostgreSQL.
+        table_name (str): The name of the table to load data from.
 
     Returns:
         pd.DataFrame: A DataFrame with processed data, including a 'revenue' column
                       and 'transaction_date' as datetime objects.
     """
-    df = pd.read_csv(path, encoding="latin-1")
+    pg_hook = PostgresHook(postgres_conn_id=conn_id)
+    sql = f"SELECT * FROM {table_name}"
+    df = pg_hook.get_pandas_df(sql)
+
     df["transaction_date"] = pd.to_datetime(df["transaction_date"])
     df["revenue"] = df["transaction_qty"] * df["unit_price"]
     return df
@@ -72,27 +81,45 @@ def create_features_pipeline(df: pd.DataFrame):
     return df
 
 
-def split_data(features_df: pd.DataFrame, test_size: float = 0.2):
+def split_data(features_df: pd.DataFrame, holdout_days: int = 30):
     """
-    Divide el DataFrame de características en conjuntos de entrenamiento y prueba.
+    Divide el DataFrame de características en conjuntos de entrenamiento y prueba
+    basados en una fecha de corte para el holdout.
 
     Args:
         features_df (pd.DataFrame): El DataFrame completo con características.
-        test_size (float): La proporción del dataset a reservar para el conjunto de prueba.
+        holdout_days (int): Número de días a reservar para el conjunto de prueba
+                            al final del dataset.
 
     Returns:
         tuple: (X_train, y_train, X_test, y_test)
     """
+    if not isinstance(features_df.index, pd.DatetimeIndex):
+        raise ValueError(
+            "features_df must have a DatetimeIndex for time-based splitting."
+        )
+
+    latest_date = features_df.index.max()
+    split_date = latest_date - timedelta(days=holdout_days)
+
     X = features_df.drop("revenue", axis=1)
     y = features_df["revenue"]
-    split_point = int(len(X) * (1 - test_size))
-    X_train, X_test = X[:split_point], X[split_point:]
-    y_train, y_test = y[:split_point], y[split_point:]
+
+    X_train = X[X.index <= split_date]
+    y_train = y[y.index <= split_date]
+    X_test = X[X.index > split_date]
+    y_test = y[y.index > split_date]
+
+    print(
+        f"Split data: Training up to {split_date.date()}, Testing after {split_date.date()}"
+    )
+    print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
+
     return X_train, y_train, X_test, y_test
 
 
 # --- Pipelines de preprocesamiento ---
-load_transformer = FunctionTransformer(load_data)
+load_transformer = FunctionTransformer(load_data_from_postgres)
 aggregate_transformer = FunctionTransformer(aggregate_daily)
 features_transformer = FunctionTransformer(create_features_pipeline)
 
@@ -103,17 +130,6 @@ pipeline = Pipeline(
         ("aggregate", aggregate_transformer),
         ("features", features_transformer),
     ]
-)
-
-# --- Ejecutar ---
-df_features = pipeline.fit_transform("data/coffee_sales_full.csv")
-
-# --- Manejo de NaNs adicional (si quieres asegurar) ---
-imputer = SimpleImputer(strategy="mean")
-df_features_filled = pd.DataFrame(
-    imputer.fit_transform(df_features),
-    columns=df_features.columns,
-    index=df_features.index,
 )
 
 preprocessing_pipeline = Pipeline(
