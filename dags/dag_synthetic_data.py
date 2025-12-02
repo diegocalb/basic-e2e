@@ -77,7 +77,6 @@ def synthetic_data_loader_dag():
 
         start_id = last_id + 1
 
-        # Generar los registros usando la función auxiliar
         data = generate_records(logical_date, num_records, start_id)
         df = pd.DataFrame(data, columns=COLUMNS)
 
@@ -85,7 +84,6 @@ def synthetic_data_loader_dag():
         s3_hook = S3Hook(aws_conn_id="minio_conn")
         s3_key = f"synthetic_data/coffee_sales_{logical_date}.csv"
 
-        # Convertir DataFrame a string CSV para cargarlo en memoria
         csv_buffer = StringIO()
         df.to_csv(csv_buffer, index=False)
 
