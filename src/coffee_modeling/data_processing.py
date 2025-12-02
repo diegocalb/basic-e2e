@@ -5,7 +5,9 @@
 from datetime import timedelta
 
 import pandas as pd
-from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.postgres.hooks.postgres import (
+    PostgresHook,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
@@ -27,6 +29,7 @@ def load_data_from_postgres(conn_id: str, table_name: str):
         pd.DataFrame: A DataFrame with processed data, including a 'revenue' column
                       and 'transaction_date' as datetime objects.
     """
+
     pg_hook = PostgresHook(postgres_conn_id=conn_id)
     sql = f"SELECT * FROM {table_name}"
     df = pg_hook.get_pandas_df(sql)
