@@ -60,6 +60,7 @@ services:
       - ./data:/opt/airflow/data
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8080:8080"
     command: webserver
@@ -84,6 +85,9 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - 997
     command: scheduler
     networks:
       - mlflow-network
@@ -99,6 +103,25 @@ services:
       - "5433:5432"  # distinto puerto externo para evitar colisión con el otro Postgres
     volumes:
       - data_db_volume:/var/lib/postgresql/data
+    networks:
+      - mlflow-network
+
+  bento-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.bento
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - POSTGRESDATA_USER=${POSTGRESDATA_USER}
+      - POSTGRESDATA_PASSWORD=${POSTGRESDATA_PASSWORD}
+      - POSTGRESDATA_DB=${POSTGRESDATA_DB}
+      - POSTGRES_HOST=postgres_data
+    depends_on:
+      - mlflow
+      - postgres_data
     networks:
       - mlflow-network
 

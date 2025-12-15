@@ -1,13 +1,11 @@
 """Module for data processing functions"""
 
 # pylint: disable=E0401
+# pylint: disable=C0415
 
 from datetime import timedelta
 
 import pandas as pd
-from airflow.providers.postgres.hooks.postgres import (
-    PostgresHook,
-)
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
@@ -29,6 +27,10 @@ def load_data_from_postgres(conn_id: str, table_name: str):
         pd.DataFrame: A DataFrame with processed data, including a 'revenue' column
                       and 'transaction_date' as datetime objects.
     """
+
+    from airflow.providers.postgres.hooks.postgres import (
+        PostgresHook,
+    )
 
     pg_hook = PostgresHook(postgres_conn_id=conn_id)
     sql = f"SELECT * FROM {table_name}"

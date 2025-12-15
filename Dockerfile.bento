@@ -1,0 +1,8 @@
+# Dockerfile para el servicio BentoML
+FROM bentoml/bento-server:1.0.0a7-python3.9-ubi7-cudnn as bento_server
+
+COPY . /bento
+
+WORKDIR /bento
+
+EXPOSE 3000

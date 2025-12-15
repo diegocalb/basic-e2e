@@ -15,6 +15,7 @@ dependencies = [
     "boto3>=1.40.59",
     "psycopg2-binary>=2.9.11",
     "pytest>=8.4.2",
+    "bentoml (>=1.4.30,<2.0.0)",
 ]
 
 [project.optional-dependencies]

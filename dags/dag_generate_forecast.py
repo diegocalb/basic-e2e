@@ -10,6 +10,7 @@ from docker.types import Mount
     schedule_interval="@weekly",
     catchup=False,
     tags=["ml", "forecast"],
+    # default_args={"task_kwargs": {"network_mode": "basic-e2e_mlflow-network"}},
     doc_md="""
     ### Pipeline de Generación de Pronósticos
 
@@ -38,7 +39,7 @@ def generate_forecast_dag():
         task_id="generate_forecast",
         image="diegoecalb/basice2e_docker_prod:v1.0.2",
         docker_url="unix://var/run/docker.sock",
-        command=["python", "/app/coffee_modeling/forecast.py"],
+        entrypoint=["python", "/app/coffee_modeling/forecast.py"],
         environment=COMMON_ENV,
         mounts=[Mount(source="/home/dcalb/basic-e2e/src", target="/app", type="bind")],
         network_mode="basic-e2e_mlflow-network",
